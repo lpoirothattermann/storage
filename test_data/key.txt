@@ -1,0 +1,4 @@
+# Key generated for development purpose
+# created: 2024-04-22T16:23:02+02:00
+# public key: age1ng6u493kmw0rdv5meqhh32wdk5afqwuqlfu4yl9y3f75gctgmp6qzmus56
+AGE-SECRET-KEY-18099V8NQHND0U4YAREVL2NTR4LUDPK7ESU8C323ZUTD0SH686GHSD9MEKK
