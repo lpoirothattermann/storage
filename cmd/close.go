@@ -4,13 +4,13 @@ import (
 	"archive/tar"
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/lpoirothattermann/storage/internal/bundler"
 	"github.com/lpoirothattermann/storage/internal/config"
 	"github.com/lpoirothattermann/storage/internal/disk"
+	"github.com/lpoirothattermann/storage/internal/log"
 	"github.com/spf13/cobra"
 )
 
@@ -30,28 +30,30 @@ func closeCmdFunc(cmd *cobra.Command, args []string) {
 
 	state, exists := config.GetConfig().States[stateName]
 	if exists == false {
-		log.Fatalf("State %q doesn't exists.\n'", stateName)
-	}
-
-	// Backup old encrypt path
-	os.Rename(state.GetArchivePath(), state.GetArchiveBackupPath())
-
-	// Bundle tmp state to encrypt path
-	archiveFile, err := os.Create(state.GetArchivePath())
-	if err != nil {
-		log.Fatalf("Error while creating empty archive: %v\n", err)
+		log.Critical.Fatalf("State %q doesn't exists.\n'", stateName)
 	}
 
 	if disk.FileOrDirectoryExists(state.GetTemporaryDirectoryPath()) == false {
-		log.Fatalf("State is not open\n")
+		log.Critical.Fatalf("State %q can't be close becose it's not open.\n", stateName)
+	}
+
+	// Backup archive
+	if err := os.Rename(state.GetArchivePath(), state.GetArchiveBackupPath()); err != nil {
+		log.Critical.Fatalf("Error while making backup of your archive: %v", err)
+	}
+
+	// Create empty archive to receive all data later
+	archiveFile, err := os.Create(state.GetArchivePath())
+	if err != nil {
+		log.Critical.Fatalf("Error while creating empty archive: %v\n", err)
 	}
 
 	bundleWriter, err := bundler.NewWriter(archiveFile, state.AgeIdentity.Recipient())
 	if err != nil {
-		log.Fatalf("Error while creating bundle writer: %v\n", err)
+		log.Critical.Fatalf("Error while creating bundle writer: %v\n", err)
 	}
 
-	filepath.Walk(state.GetTemporaryDirectoryPath(), func(path string, info fs.FileInfo, err error) error {
+	err = filepath.Walk(state.GetTemporaryDirectoryPath(), func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -86,11 +88,27 @@ func closeCmdFunc(cmd *cobra.Command, args []string) {
 
 		return nil
 	})
+	if err != nil {
+		log.Critical.Fatalf("Error while coping data in the archive: %v\n", err)
+	}
 
-	bundleWriter.Close()
-	archiveFile.Close()
+	if err := bundleWriter.Close(); err != nil {
+		log.Critical.Fatalf("Error while closing bundle writer: %v\n", err)
+	}
 
-	os.RemoveAll(state.GetSymlinkTargetPath())
-	os.RemoveAll(state.GetTemporaryDirectoryPath())
-	os.RemoveAll(state.GetArchiveBackupPath())
+	if err := archiveFile.Close(); err != nil {
+		log.Critical.Fatalf("Error while closing archive: %v\n", err)
+	}
+
+	if err := os.RemoveAll(state.GetSymlinkTargetPath()); err != nil {
+		log.Critical.Fatalf("Error while removing symlink %q -> %q: %v\n", state.GetTemporaryDirectoryPath(), state.GetSymlinkTargetPath(), err)
+	}
+
+	if err := os.RemoveAll(state.GetTemporaryDirectoryPath()); err != nil {
+		log.Critical.Fatalf("Error while removing %q: %v\n", state.GetTemporaryDirectoryPath(), err)
+	}
+
+	if err := os.RemoveAll(state.GetArchiveBackupPath()); err != nil {
+		log.Critical.Fatalf("Error while removing archive backup %q: %v\n", state.GetArchiveBackupPath(), err)
+	}
 }

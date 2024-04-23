@@ -3,14 +3,14 @@ package disk
 import (
 	"archive/tar"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/lpoirothattermann/storage/internal/bundler"
+	"github.com/lpoirothattermann/storage/internal/log"
 )
 
-func WriteBundleToPath(bundleReader *bundler.BundleReader, directoryOutput string) {
+func WriteBundleToPath(bundleReader *bundler.BundleReader, directoryOutput string) error {
 	for true {
 		header, err := bundleReader.Next()
 		if err == io.EOF {
@@ -18,27 +18,29 @@ func WriteBundleToPath(bundleReader *bundler.BundleReader, directoryOutput strin
 		}
 
 		if err != nil {
-			log.Fatalf("Error while scanning archive: %v\n", err)
+			return err
 		}
 
 		filepath := filepath.Join(directoryOutput, header.Name)
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(filepath, 0755); err != nil {
-				log.Fatalf("Error while creating folder: %v", err)
+				return err
 			}
 		case tar.TypeReg:
 			if err := WriteBufferToFilePath(directoryOutput, header.Name, bundleReader.TarReader); err != nil {
-				log.Fatalf("Error while writing file on disk: %v\n", err)
+				return err
 			}
 		default:
-			log.Fatalf(
+			log.Critical.Fatalf(
 				"Unknown type: %v in %v",
 				header.Typeflag,
 				header.Name,
 			)
 		}
 	}
+
+	return nil
 }
 
 func WriteBufferToFilePath(path string, fileName string, buffer io.Reader) error {
@@ -59,23 +61,25 @@ func FileOrDirectoryExists(path string) bool {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return false
 	} else if err != nil {
-		log.Fatalf("Error while reading path: %v\n", err)
+		log.Critical.Fatalf("Error while reading path: %v\n", err)
 	}
 
 	return true
 }
 
-func CreateSymlink(source string, destination string, force bool) {
+func CreateSymlink(source string, destination string, force bool) error {
 	if FileOrDirectoryExists(destination) {
 		if force == false {
-			log.Fatalf("Symlink already exists")
+			log.Critical.Fatalf("Symlink already exists")
 		}
-		if err := os.Remove(destination); err != nil {
-			log.Fatalf("Error while deleting old symlink: %v\n", err)
+		if err := os.RemoveAll(destination); err != nil {
+			return err
 		}
 	}
 
 	if err := os.Symlink(source, destination); err != nil {
-		log.Fatalf("Error while creating symlink: %v\n", err)
+		return err
 	}
+
+	return nil
 }

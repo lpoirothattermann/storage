@@ -2,18 +2,19 @@ package age
 
 import (
 	"bufio"
-	"log"
+	"errors"
 	"os"
 	"strings"
 
 	"filippo.io/age"
 )
 
-func GetIdentityFromFile(filePath string) *age.X25519Identity {
+func GetIdentityFromFile(filePath string) (*age.X25519Identity, error) {
 	privateKeyFile, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalf("Error while opening private key file: %v\n", err)
+		return nil, err
 	}
+	defer privateKeyFile.Close()
 
 	fileScanner := bufio.NewScanner(privateKeyFile)
 
@@ -24,16 +25,15 @@ func GetIdentityFromFile(filePath string) *age.X25519Identity {
 			break
 		}
 	}
-	privateKeyFile.Close()
 
 	if privateKeyString == "" {
-		log.Fatal("No private key in the given file")
+		return nil, errors.New("No private key found in file")
 	}
 
 	identity, err := age.ParseX25519Identity(privateKeyString)
 	if err != nil {
-		log.Fatalf("Error while parsing private key: %v\n", err)
+		return nil, err
 	}
 
-	return identity
+	return identity, nil
 }

@@ -1,5 +1,6 @@
 test_data/*
 !test_data/key.txt
+!test_data/storage.toml
 !test_data/decrypted/.gitkeep
 !test_data/encrypted/.gitkeep
 

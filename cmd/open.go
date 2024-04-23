@@ -1,12 +1,12 @@
 package cmd
 
 import (
-	"log"
 	"os"
 
 	"github.com/lpoirothattermann/storage/internal/bundler"
 	"github.com/lpoirothattermann/storage/internal/config"
 	"github.com/lpoirothattermann/storage/internal/disk"
+	"github.com/lpoirothattermann/storage/internal/log"
 	"github.com/spf13/cobra"
 )
 
@@ -28,30 +28,35 @@ func openCmdFunc(cmd *cobra.Command, args []string) {
 
 	state, exists := config.GetConfig().States[stateName]
 	if exists == false {
-		log.Fatalf("State %q doesn't exists.\n'", stateName)
+		log.Critical.Fatalf("State %q doesn't exists.\n'", stateName)
 	}
 
 	file, err := os.Open(state.GetArchivePath())
 	if err != nil {
-		log.Fatalf("Error while opening encrypted archive: %v\n", err)
+		log.Critical.Fatalf("Error while opening archive: %v\n", err)
 	}
 
 	bundleReader, err := bundler.NewReader(file, state.AgeIdentity)
 	if err != nil {
-		log.Fatalf("Error while opening bundle reader: %v\n", err)
+		log.Critical.Fatalf("Error while opening bundle reader: %v\n", err)
 	}
 
 	tmpDirectoryPath := state.GetTemporaryDirectoryPath()
 	if disk.FileOrDirectoryExists(tmpDirectoryPath) == true {
 		if forceCommand == true {
 			if err := os.RemoveAll(tmpDirectoryPath); err != nil {
-				log.Fatalf("Error while removing old temporary directory: %v\n", err)
+				log.Critical.Fatalf("Error while removing old temporary directory: %v\n", err)
 			}
 		} else {
-			log.Fatalf("State is already open.")
+			log.Critical.Fatalf("State is already open.")
 		}
 	}
 
-	disk.WriteBundleToPath(bundleReader, tmpDirectoryPath)
-	disk.CreateSymlink(tmpDirectoryPath, state.GetSymlinkTargetPath(), true)
+	if err := disk.WriteBundleToPath(bundleReader, tmpDirectoryPath); err != nil {
+		log.Critical.Fatalf("Error while writing archive on disk: %v\n", err)
+	}
+
+	if err := disk.CreateSymlink(tmpDirectoryPath, state.GetSymlinkTargetPath(), true); err != nil {
+		log.Critical.Fatalf("Error while creating symlink: %v\n", err)
+	}
 }

@@ -3,14 +3,11 @@ package cmd
 import (
 	"archive/tar"
 	"bytes"
-	"fmt"
-	"log"
 
-	"filippo.io/age"
 	ageInternal "github.com/lpoirothattermann/storage/internal/age"
 	"github.com/lpoirothattermann/storage/internal/bundler"
 	"github.com/lpoirothattermann/storage/internal/disk"
-	"github.com/lpoirothattermann/storage/internal/format"
+	"github.com/lpoirothattermann/storage/internal/log"
 	"github.com/lpoirothattermann/storage/internal/path"
 	"github.com/spf13/cobra"
 )
@@ -28,51 +25,37 @@ func init() {
 func initCmdFunc(cmd *cobra.Command, args []string) {
 	privateKeyPath := path.GetNormalizedPath(args[0])
 	stateDirectoryOutput := path.GetNormalizedPath(args[1])
-	nameWithoutExtensions := args[2]
+	stateName := args[2]
 
-	ageIdentity := ageInternal.GetIdentityFromFile(privateKeyPath)
-
-	if err := createArchiveForNewState(ageIdentity.Recipient(), stateDirectoryOutput, nameWithoutExtensions); err != nil {
-		log.Fatal(format.ErrorTypeAndMessage("cmd", err))
+	ageIdentity, err := ageInternal.GetIdentityFromFile(privateKeyPath)
+	if err != nil {
+		log.Critical.Fatalf("Error while getting identity from file %q: %v\n", privateKeyPath, err)
 	}
 
-	fmt.Println("Archive succesfully created, it can be use for a new state.")
-}
-
-func createArchiveForNewState(recipient *age.X25519Recipient, directoryPath string, stateName string) error {
-	archiveBaseDirectoryName := stateName
 	tarballBuffer := bytes.Buffer{}
 
-	bundleWriter, err := bundler.NewWriter(&tarballBuffer, recipient)
+	bundleWriter, err := bundler.NewWriter(&tarballBuffer, ageIdentity.Recipient())
 	if err != nil {
-		fmt.Println("Error while openning bundler writer:", err)
-
-		return err
+		log.Critical.Fatalf("Error while openning bundle writer: %v\n", err)
 	}
 
 	tarHeader := &tar.Header{
-		Name:     fmt.Sprintf("%v/", archiveBaseDirectoryName),
+		Name:     stateName,
 		Mode:     0755,
 		Typeflag: tar.TypeDir,
 	}
 
 	if err := bundleWriter.TarWriter.WriteHeader(tarHeader); err != nil {
-		fmt.Println("Error writing directory header to tarball:", err)
-
-		return err
+		log.Critical.Fatalf("Error while writing header to tarball: %v\n", err)
 	}
 
 	if err := bundleWriter.Close(); err != nil {
-		fmt.Println("Error closing bundle writer:", err)
-
-		return err
+		log.Critical.Fatalf("Error closing bundle writer: %v\n", err)
 	}
 
-	if err := disk.WriteBufferToFilePath(directoryPath, bundler.GetFinalFilename(stateName), &tarballBuffer); err != nil {
-		fmt.Println("Error while writing tarball to file:", err)
-
-		return err
+	if err := disk.WriteBufferToFilePath(stateDirectoryOutput, bundler.GetFinalFilename(stateName), &tarballBuffer); err != nil {
+		log.Critical.Fatalf("Error while writing tarball buffer to file: %v\n", err)
 	}
 
-	return nil
+	log.Info.Printf("Archive succesfully created, archive can be used for a new state with name %q.\n", stateName)
 }

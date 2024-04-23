@@ -1,22 +1,23 @@
 package config
 
 import (
-	"log"
 	"os"
 
 	ageInternal "github.com/lpoirothattermann/storage/internal/age"
 	"github.com/lpoirothattermann/storage/internal/constants"
-	"github.com/lpoirothattermann/storage/internal/format"
+	"github.com/lpoirothattermann/storage/internal/log"
 	"github.com/lpoirothattermann/storage/internal/path"
 	"github.com/spf13/viper"
 )
 
 type rawConfig struct {
-	States map[string]rawState `mapstructure:"states"`
+	LogFilePath string              `mapstructure:"log_file_path"`
+	States      map[string]rawState `mapstructure:"states"`
 }
 
 type Config struct {
-	States map[string]State
+	LogFilePath string
+	States      map[string]State
 }
 
 func GetConfig() *Config {
@@ -24,7 +25,7 @@ func GetConfig() *Config {
 
 	// Ensure that config directory is created
 	if err := os.MkdirAll(configDirectoryPath, os.ModePerm); err != nil {
-		log.Fatalf("Error while creating config directory: %v\n", err)
+		log.Critical.Fatalf("Error while creating config directory: %v\n", err)
 	}
 
 	viper.AddConfigPath(configDirectoryPath)
@@ -37,22 +38,28 @@ func GetConfig() *Config {
 			createDefaultConfigFile()
 			return GetConfig()
 		} else {
-			log.Fatal(format.ErrorTypeAndMessage("main", err))
+			log.Critical.Fatalf("Error while loading config: %v\n", err)
 		}
 	}
 
 	rawConfig := &rawConfig{}
 	if err := viper.UnmarshalExact(rawConfig); err != nil {
-		format.ErrorTypeAndMessage("config", err)
+		log.Critical.Fatalf("Error while parsing configuration file: %v\n", err)
 	}
 
 	// Create formated config struct
 	config := Config{
-		States: make(map[string]State),
+		LogFilePath: path.GetNormalizedPath(rawConfig.LogFilePath),
+		States:      make(map[string]State),
 	}
 
 	for index, value := range rawConfig.States {
-		identity := ageInternal.GetIdentityFromFile(path.GetNormalizedPath(value.PrivateKeyPath))
+		privateKeyPath := path.GetNormalizedPath(value.PrivateKeyPath)
+
+		identity, err := ageInternal.GetIdentityFromFile(privateKeyPath)
+		if err != nil {
+			log.Critical.Fatalf("Error while getting identity from file %q: %v\n", privateKeyPath, err)
+		}
 
 		config.States[index] = State{
 			Name:          index,
@@ -61,6 +68,7 @@ func GetConfig() *Config {
 			DecryptedPath: path.GetNormalizedPath(value.DecryptedPath),
 		}
 	}
+
 	return &config
 }
 
@@ -80,7 +88,7 @@ func GetConfigFilePath() string {
 func createDefaultConfigFile() {
 	setDefaultConfigs()
 	if err := viper.WriteConfigAs(GetConfigFilePath()); err != nil {
-		log.Fatal(format.ErrorTypeAndMessage("main", err))
+		log.Critical.Fatalf("Error while creating config file %q: %v\n", GetConfigFilePath(), err)
 	}
 }
 
