@@ -20,7 +20,24 @@ type Config struct {
 	States      map[string]State
 }
 
+// Singleton
+var singleConfig *Config
+
 func GetConfig() *Config {
+	if singleConfig == nil {
+		singleConfig = getConfig()
+	}
+
+	return singleConfig
+}
+
+func ReloadConfig() *Config {
+	singleConfig = getConfig()
+
+	return singleConfig
+}
+
+func getConfig() *Config {
 	configDirectoryPath := getConfigDirectoryPath()
 
 	// Ensure that config directory is created
