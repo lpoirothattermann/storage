@@ -28,7 +28,7 @@ func openCmdFunc(cmd *cobra.Command, args []string) {
 
 	state, exists := config.GetConfig().States[stateName]
 	if exists == false {
-		log.Critical.Fatalf("State %q doesn't exists.\n'", stateName)
+		log.Critical.Fatalf("State %q doesn't exists.\n", stateName)
 	}
 
 	file, err := os.Open(state.GetArchivePath())
