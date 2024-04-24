@@ -6,6 +6,7 @@ import (
 
 	"filippo.io/age"
 	"github.com/lpoirothattermann/storage/internal/constants"
+	"github.com/lpoirothattermann/storage/internal/disk"
 )
 
 type rawState struct {
@@ -19,6 +20,18 @@ type State struct {
 	AgeIdentity   *age.X25519Identity
 	EncryptedPath string
 	DecryptedPath string
+}
+
+func (state *State) IsOpen() bool {
+	if disk.FileOrDirectoryExists(state.GetTemporaryDirectoryPath()) == false {
+		return false
+	}
+
+	return true
+}
+
+func (state *State) IsClose() bool {
+	return !state.IsOpen()
 }
 
 func (state *State) GetTemporaryDirectoryPath() string {
