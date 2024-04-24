@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/lpoirothattermann/storage/internal/config"
 	"github.com/lpoirothattermann/storage/internal/disk"
+	"github.com/lpoirothattermann/storage/internal/log"
 	"github.com/spf13/cobra"
 )
 
@@ -15,11 +17,17 @@ func init() {
 		Args:  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 		Run:   healthCmdFunc,
 	}
+	command.Flags().Bool("fix", false, "Try to fix unhealthy state")
+
 	rootCmd.AddCommand(command)
 }
 
 func healthCmdFunc(cmd *cobra.Command, args []string) {
 	stateName := args[0]
+	shouldFix, err := cmd.Flags().GetBool("fix")
+	if err != nil {
+		log.Critical.Fatalf("Error while parsing fix flag: %v\n", err)
+	}
 
 	state, exists := config.GetConfig().States[stateName]
 	if exists == false {
@@ -30,40 +38,54 @@ func healthCmdFunc(cmd *cobra.Command, args []string) {
 
 	if state.IsOpen() {
 		fmt.Printf("State %q is Open.\n\n", stateName)
-		healthOpen(&state)
+		healthOpen(&state, shouldFix)
 	} else {
 		fmt.Printf("State %q is Close.\n\n", stateName)
-		healthClose(&state)
+		healthClose(&state, shouldFix)
 	}
 }
 
-func healthOpen(state *config.State) {
+func healthOpen(state *config.State, shouldFix bool) {
 	checkArchivePresence(state.GetArchivePath())
 
 	if disk.FileOrDirectoryExists(state.GetSymlinkTargetPath()) == false {
-		fmt.Printf("Decrypted archive KO.\nDirectory not present at %v\n", state.GetSymlinkTargetPath())
+		if shouldFix == true {
+			if err := disk.CreateSymlink(state.GetTemporaryDirectoryPath(), state.GetSymlinkTargetPath(), true); err != nil {
+				log.Critical.Fatalf("Error trying to create symlink: %v\n", err)
+			}
+			fmt.Printf("Decrypted archive OK - Fixed\n")
+		} else {
+			fmt.Printf("Decrypted archive KO (fixable automatically with --fix). Directory not present at %v\n", state.GetSymlinkTargetPath())
+		}
 	} else {
 		fmt.Printf("Decrypted archive OK\n")
 	}
 
-	checkDanglingBackupPresence(state.GetArchiveBackupPath())
+	checkDanglingBackupPresence(state.GetArchiveBackupPath(), shouldFix)
 }
 
-func healthClose(state *config.State) {
+func healthClose(state *config.State, shouldFix bool) {
 	checkArchivePresence(state.GetArchivePath())
-	checkDanglingBackupPresence(state.GetArchiveBackupPath())
+	checkDanglingBackupPresence(state.GetArchiveBackupPath(), shouldFix)
 }
 
 func checkArchivePresence(archivePath string) {
 	if disk.FileOrDirectoryExists(archivePath) == false {
-		fmt.Printf("Encrypted archive KO.\nArchive not present at %v\n", archivePath)
+		fmt.Printf("Encrypted archive KO (not fixable automatically). Archive not present at %v\n", archivePath)
 	} else {
 		fmt.Printf("Encrypted archive OK\n")
 	}
 }
 
-func checkDanglingBackupPresence(backupPath string) {
+func checkDanglingBackupPresence(backupPath string, shouldFix bool) {
 	if disk.FileOrDirectoryExists(backupPath) == true {
-		fmt.Printf("\nWARNING: Dangling archive backup at %v\n", backupPath)
+		if shouldFix == true {
+			if err := os.RemoveAll(backupPath); err != nil {
+				log.Critical.Fatalf("Error while deleting dangling backup archive: %v\n", err)
+			}
+			fmt.Printf("INFO: Dangling archive backup at %v has been deleted.\n", backupPath)
+		} else {
+			fmt.Printf("\nWARNING: Dangling archive backup at %v .\nCan be deleted with automatically with --fix.\n", backupPath)
+		}
 	}
 }
