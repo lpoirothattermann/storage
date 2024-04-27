@@ -2,6 +2,7 @@ package disk
 
 import (
 	"archive/tar"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,7 +11,7 @@ import (
 	"github.com/lpoirothattermann/storage/internal/log"
 )
 
-func WriteBundleToPath(bundleReader *bundler.BundleReader, directoryOutput string) error {
+func UnbundleToPath(bundleReader *bundler.BundleReader, directoryOutput string) error {
 	for true {
 		header, err := bundleReader.Next()
 		if err == io.EOF {
@@ -61,16 +62,20 @@ func FileOrDirectoryExists(path string) bool {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return false
 	} else if err != nil {
-		log.Critical.Fatalf("Error while reading path: %v\n", err)
+		return false
 	}
 
 	return true
 }
 
 func CreateSymlink(source string, destination string, force bool) error {
+	if !FileOrDirectoryExists(source) {
+		return errors.New("Source directory doesn't exists")
+	}
+
 	if FileOrDirectoryExists(destination) {
 		if force == false {
-			log.Critical.Fatalf("Symlink already exists")
+			return errors.New("Symlink already exists")
 		}
 		if err := os.RemoveAll(destination); err != nil {
 			return err

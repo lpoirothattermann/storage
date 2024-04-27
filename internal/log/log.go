@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"os"
+
+	"github.com/lpoirothattermann/storage/internal/constants"
 )
 
 var (
@@ -24,10 +26,10 @@ func Initialization(logFilePath string) error {
 
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 
-	Info = log.New(multiWriter, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Warning = log.New(multiWriter, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(multiWriter, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Critical = log.New(multiWriter, "CRITICAL: ", log.Ldate|log.Ltime|log.Lshortfile)
+	Critical = log.New(multiWriter, constants.LOG_PREFIX_CRITICAL+": ", log.Ldate|log.Ltime|log.Lshortfile)
+	Error = log.New(multiWriter, constants.LOG_PREFIX_ERROR+": ", log.Ldate|log.Ltime|log.Lshortfile)
+	Warning = log.New(multiWriter, constants.LOG_PREFIX_WARNING+": ", log.Ldate|log.Ltime|log.Lshortfile)
+	Info = log.New(multiWriter, constants.LOG_PREFIX_INFO+": ", log.Ldate|log.Ltime|log.Lshortfile)
 
 	return nil
 }
@@ -40,6 +42,12 @@ func Close() error {
 	if err := logFile.Close(); err != nil {
 		return err
 	}
+
+	logFile = nil
+	Info = nil
+	Warning = nil
+	Error = nil
+	Critical = nil
 
 	return nil
 }

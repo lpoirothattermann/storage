@@ -2,11 +2,12 @@ package config
 
 import (
 	"os"
+	"path"
 
 	ageInternal "github.com/lpoirothattermann/storage/internal/age"
 	"github.com/lpoirothattermann/storage/internal/constants"
 	"github.com/lpoirothattermann/storage/internal/log"
-	"github.com/lpoirothattermann/storage/internal/path"
+	pathInternal "github.com/lpoirothattermann/storage/internal/path"
 	"github.com/spf13/viper"
 )
 
@@ -50,6 +51,7 @@ func getConfig() *Config {
 	viper.SetConfigType(constants.CONFIG_FILETYPE)
 
 	// Load config
+	// TODO not a better way to do?
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			createDefaultConfigFile()
@@ -66,12 +68,12 @@ func getConfig() *Config {
 
 	// Create formated config struct
 	config := Config{
-		LogFilePath: path.GetNormalizedPath(rawConfig.LogFilePath),
+		LogFilePath: pathInternal.GetNormalizedPath(rawConfig.LogFilePath),
 		States:      make(map[string]State),
 	}
 
 	for index, value := range rawConfig.States {
-		privateKeyPath := path.GetNormalizedPath(value.PrivateKeyPath)
+		privateKeyPath := pathInternal.GetNormalizedPath(value.PrivateKeyPath)
 
 		identity, err := ageInternal.GetIdentityFromFile(privateKeyPath)
 		if err != nil {
@@ -81,8 +83,8 @@ func getConfig() *Config {
 		config.States[index] = State{
 			Name:          index,
 			AgeIdentity:   identity,
-			EncryptedPath: path.GetNormalizedPath(value.EncryptedPath),
-			DecryptedPath: path.GetNormalizedPath(value.DecryptedPath),
+			EncryptedPath: pathInternal.GetNormalizedPath(value.EncryptedPath),
+			DecryptedPath: pathInternal.GetNormalizedPath(value.DecryptedPath),
 		}
 	}
 
@@ -90,7 +92,7 @@ func getConfig() *Config {
 }
 
 func getConfigDirectoryPath() string {
-	// TODO improve
+	// TODO improve, process in constants file directly ?
 	if os.Getenv("GOENV") == "dev" {
 		return "test_data/"
 	}
@@ -99,7 +101,8 @@ func getConfigDirectoryPath() string {
 }
 
 func GetConfigFilePath() string {
-	return getConfigDirectoryPath() + constants.CONFIG_BASENAME + "." + constants.CONFIG_FILETYPE
+	// TODO process in constants file directly ?
+	return path.Join(getConfigDirectoryPath(), constants.CONFIG_BASENAME+"."+constants.CONFIG_FILETYPE)
 }
 
 func createDefaultConfigFile() {
@@ -111,5 +114,6 @@ func createDefaultConfigFile() {
 
 // Set every default configurations, it will be used to create default configuration file
 func setDefaultConfigs() {
+	viper.Set("log_file_path", path.Join(GetConfigFilePath(), constants.CONFIG_DEFAULT_LOG_FILE_FILENAME))
 	viper.Set("states", make(map[string]struct{}, 0))
 }

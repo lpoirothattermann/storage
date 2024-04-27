@@ -52,7 +52,7 @@ func openCmdFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	if err := disk.WriteBundleToPath(bundleReader, tmpDirectoryPath); err != nil {
+	if err := disk.UnbundleToPath(bundleReader, tmpDirectoryPath); err != nil {
 		log.Critical.Fatalf("Error while writing archive on disk: %v\n", err)
 	}
 
