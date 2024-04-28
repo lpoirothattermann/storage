@@ -5,10 +5,12 @@ import (
 	"path"
 )
 
+const VERSION = "0.1"
+
 var userHomeDir, _ = os.UserHomeDir()
 
 var USER_HOME_DIRECTORY = userHomeDir
-var CONFIG_DIRECTORY_PATH = path.Join(USER_HOME_DIRECTORY + ".config/storage")
+var CONFIG_DIRECTORY_PATH = path.Join(USER_HOME_DIRECTORY, ".config/storage")
 var CONFIG_RELATIVE_DEV_DIRECTORY_PATH = "test_data"
 
 const CONFIG_BASENAME = "storage"
