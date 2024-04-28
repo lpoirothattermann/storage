@@ -1,12 +1,13 @@
 package config
 
 import (
+	"log"
 	"os"
 	"path"
 
 	ageInternal "github.com/lpoirothattermann/storage/internal/age"
 	"github.com/lpoirothattermann/storage/internal/constants"
-	"github.com/lpoirothattermann/storage/internal/log"
+	logInternal "github.com/lpoirothattermann/storage/internal/log"
 	pathInternal "github.com/lpoirothattermann/storage/internal/path"
 	"github.com/spf13/viper"
 )
@@ -43,7 +44,12 @@ func getConfig() *Config {
 
 	// Ensure that config directory is created
 	if err := os.MkdirAll(configDirectoryPath, os.ModePerm); err != nil {
-		log.Critical.Fatalf("Error while creating config directory: %v\n", err)
+		format := "Error while creating config directory: %v\n"
+		if logInternal.Critical != nil {
+			logInternal.Critical.Fatalf(format, err)
+		} else {
+			log.Fatalf(format, err)
+		}
 	}
 
 	viper.AddConfigPath(configDirectoryPath)
@@ -57,13 +63,13 @@ func getConfig() *Config {
 			createDefaultConfigFile()
 			return GetConfig()
 		} else {
-			log.Critical.Fatalf("Error while loading config: %v\n", err)
+			logInternal.Critical.Fatalf("Error while loading config: %v\n", err)
 		}
 	}
 
 	rawConfig := &rawConfig{}
 	if err := viper.UnmarshalExact(rawConfig); err != nil {
-		log.Critical.Fatalf("Error while parsing configuration file: %v\n", err)
+		logInternal.Critical.Fatalf("Error while parsing configuration file: %v\n", err)
 	}
 
 	// Create formated config struct
@@ -77,7 +83,7 @@ func getConfig() *Config {
 
 		identity, err := ageInternal.GetIdentityFromFile(privateKeyPath)
 		if err != nil {
-			log.Critical.Fatalf("Error while getting identity from file %q: %v\n", privateKeyPath, err)
+			logInternal.Critical.Fatalf("Error while getting identity from file %q: %v\n", privateKeyPath, err)
 		}
 
 		config.States[index] = State{
@@ -108,12 +114,12 @@ func GetConfigFilePath() string {
 func createDefaultConfigFile() {
 	setDefaultConfigs()
 	if err := viper.WriteConfigAs(GetConfigFilePath()); err != nil {
-		log.Critical.Fatalf("Error while creating config file %q: %v\n", GetConfigFilePath(), err)
+		logInternal.Critical.Fatalf("Error while creating config file %q: %v\n", GetConfigFilePath(), err)
 	}
 }
 
 // Set every default configurations, it will be used to create default configuration file
 func setDefaultConfigs() {
-	viper.Set("log_file_path", path.Join(GetConfigFilePath(), constants.CONFIG_DEFAULT_LOG_FILE_FILENAME))
+	viper.Set("log_file_path", path.Join(getConfigDirectoryPath(), constants.CONFIG_DEFAULT_LOG_FILE_FILENAME))
 	viper.Set("states", make(map[string]struct{}, 0))
 }
