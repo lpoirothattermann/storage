@@ -3,6 +3,14 @@
 platforms=("darwin/amd64" "darwin/arm64" "linux/arm64" "linux/amd64")
 basedir="build"
 
+go test -v ./...
+if [ $? -ne 0 ]; then
+  echo "Tests failed"
+  exit 1
+fi
+
+echo -e "\nBuilding:"
+  
 for platform in "${platforms[@]}"
 do
 	platform_split=(${platform//\// })
@@ -16,10 +24,10 @@ do
 
 	env GOOS=$GOOS GOARCH=$GOARCH go build -o $output_dir/$output_name main.go
 	if [ $? -ne 0 ]; then
-		echo 'An error has occurred! Aborting the script execution...'
+		echo '    An error has occurred! Aborting the script execution...'
 		exit 1
 	fi
-  echo "${platform} has been built"
+  echo "    ${platform} has been built"
 done
 
 echo -e "\nEverything has been built in ${basedir}/"
