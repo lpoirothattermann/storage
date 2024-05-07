@@ -17,9 +17,25 @@ var (
 	Critical *log.Logger
 )
 
+// Init all logger to stdout to get error
+func init() {
+	if Critical == nil {
+		Critical = log.New(os.Stdout, constants.LOG_PREFIX_CRITICAL+": ", log.Ldate|log.Ltime|log.Lshortfile)
+	}
+	if Error == nil {
+		Error = log.New(os.Stdout, constants.LOG_PREFIX_ERROR+": ", log.Ldate|log.Ltime|log.Lshortfile)
+	}
+	if Warning == nil {
+		Warning = log.New(os.Stdout, constants.LOG_PREFIX_WARNING+": ", log.Ldate|log.Ltime|log.Lshortfile)
+	}
+	if Info == nil {
+		Info = log.New(os.Stdout, constants.LOG_PREFIX_INFO+": ", log.Ldate|log.Ltime|log.Lshortfile)
+	}
+}
+
 func Initialization(logFilePath string) error {
 	var err error
-	logFile, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0755)
+	logFile, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o755)
 	if err != nil {
 		return err
 	}
