@@ -3,8 +3,9 @@ package cmd
 import (
 	"archive/tar"
 	"bytes"
+	"os"
 
-	ageInternal "github.com/lpoirothattermann/storage/internal/age"
+	"filippo.io/age"
 	"github.com/lpoirothattermann/storage/internal/bundler"
 	"github.com/lpoirothattermann/storage/internal/disk"
 	"github.com/lpoirothattermann/storage/internal/log"
@@ -27,10 +28,15 @@ func initCmdFunc(cmd *cobra.Command, args []string) {
 	stateDirectoryOutput := path.GetNormalizedPath(args[1])
 	stateName := args[2]
 
-	ageIdentity, err := ageInternal.GetIdentityFromFile(privateKeyPath)
+	privateKeyReader, err := os.Open(privateKeyPath)
+	if err != nil {
+		log.Critical.Fatalf("Unable to open private key file: %v\n", err)
+	}
+	identities, err := age.ParseIdentities(privateKeyReader)
 	if err != nil {
 		log.Critical.Fatalf("Error while getting identity from file %q: %v\n", privateKeyPath, err)
 	}
+	ageIdentity := identities[0].(*age.X25519Identity)
 
 	tarballBuffer := bytes.Buffer{}
 

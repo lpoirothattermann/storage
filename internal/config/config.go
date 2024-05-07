@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	ageInternal "github.com/lpoirothattermann/storage/internal/age"
+	"filippo.io/age"
 	"github.com/lpoirothattermann/storage/internal/constants"
 	logInternal "github.com/lpoirothattermann/storage/internal/log"
 	pathInternal "github.com/lpoirothattermann/storage/internal/path"
@@ -81,14 +81,18 @@ func getConfig() *Config {
 	for index, value := range rawConfig.States {
 		privateKeyPath := pathInternal.GetNormalizedPath(value.PrivateKeyPath)
 
-		identity, err := ageInternal.GetIdentityFromFile(privateKeyPath)
+		privateKeyReader, err := os.Open(privateKeyPath)
+		if err != nil {
+			logInternal.Critical.Fatalf("Unable to open private key file: %v\n", err)
+		}
+		identities, err := age.ParseIdentities(privateKeyReader)
 		if err != nil {
 			logInternal.Critical.Fatalf("Error while getting identity from file %q: %v\n", privateKeyPath, err)
 		}
 
 		config.States[index] = State{
 			Name:          index,
-			AgeIdentity:   identity,
+			AgeIdentity:   identities[0].(*age.X25519Identity),
 			EncryptedPath: pathInternal.GetNormalizedPath(value.EncryptedPath),
 			DecryptedPath: pathInternal.GetNormalizedPath(value.DecryptedPath),
 		}
