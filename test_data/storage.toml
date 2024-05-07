@@ -3,6 +3,6 @@ log_file_path = '~/Code/storage/test_data/storage.log'
 [states]
 
 [states.test]
-private_key_path = "~/Code/storage/test_data/key.txt"
+private_key_path = "~/Code/storage/test_data/keys/key.txt"
 encrypted_path = "~/Code/storage/test_data/encrypted/"
 decrypted_path = "~/Code/storage/test_data/decrypted/"
