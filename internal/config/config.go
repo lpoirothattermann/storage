@@ -1,12 +1,10 @@
 package config
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"os"
 	"path"
-	"strings"
 
 	"filippo.io/age"
 	ageInternal "github.com/lpoirothattermann/storage/internal/age"
@@ -93,36 +91,14 @@ func getConfig() *Config {
 
 		if ageInternal.IsEncryptedWithPassphrase(privateKeyReaderLimited) {
 			privateKeyReader.Seek(0, io.SeekStart)
-
-			passphrase, err := ageInternal.PassphrasePromptForDecryption()
-			if err != nil {
-				logInternal.Critical.Fatalf("Error while getting passphrase from user input: %v\n", err)
-			}
-
-			scryptIdentity, err := age.NewScryptIdentity(passphrase)
-			if err != nil {
-				logInternal.Critical.Fatalf("Error while creating passphrase identity: %v\n", err)
-			}
-			ad, err := age.Decrypt(privateKeyReaderLimited, scryptIdentity)
-			if err != nil {
-				if _, isWrongPassphrase := err.(*age.NoIdentityMatchError); isWrongPassphrase {
-					fmt.Printf("Wrong passphrase.\n")
-					os.Exit(1)
-				} else {
-					logInternal.Critical.Fatalf("Error while decrypting key with passphrase: %T\n", err)
-				}
-			}
-
-			privateKeyFileDecrypted, err := io.ReadAll(ad)
-			if err != nil {
-				logInternal.Critical.Fatalf("Error while parsing key file: %v\n", err)
-			}
-			privateKeyReaderLimited = strings.NewReader(string(privateKeyFileDecrypted))
+			privateKeyReaderLimited = ageInternal.AskAndDecryptWithPassphrase(privateKeyReaderLimited)
+		} else {
+			privateKeyReader.Seek(0, io.SeekStart)
 		}
 
 		identities, err := age.ParseIdentities(privateKeyReaderLimited)
 		if err != nil {
-			logInternal.Critical.Fatalf("Error while getting identity from key file: %v\n", err)
+			logInternal.Critical.Fatalf("Error while getting identity from key file %q: %v\n", privateKeyPath, err)
 		}
 
 		config.States[index] = State{

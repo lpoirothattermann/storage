@@ -3,12 +3,15 @@ package cmd
 import (
 	"archive/tar"
 	"bytes"
+	"io"
 	"os"
 
 	"filippo.io/age"
+	ageInternal "github.com/lpoirothattermann/storage/internal/age"
 	"github.com/lpoirothattermann/storage/internal/bundler"
+	"github.com/lpoirothattermann/storage/internal/constants"
 	"github.com/lpoirothattermann/storage/internal/disk"
-	"github.com/lpoirothattermann/storage/internal/log"
+	logInternal "github.com/lpoirothattermann/storage/internal/log"
 	"github.com/lpoirothattermann/storage/internal/path"
 	"github.com/spf13/cobra"
 )
@@ -30,11 +33,20 @@ func initCmdFunc(cmd *cobra.Command, args []string) {
 
 	privateKeyReader, err := os.Open(privateKeyPath)
 	if err != nil {
-		log.Critical.Fatalf("Unable to open private key file: %v\n", err)
+		logInternal.Critical.Fatalf("Unable to open private key file: %v\n", err)
 	}
-	identities, err := age.ParseIdentities(privateKeyReader)
+
+	privateKeyReaderLimited := io.LimitReader(privateKeyReader, constants.PRIVATE_KEY_SIZE_LIMIT)
+	if ageInternal.IsEncryptedWithPassphrase(privateKeyReaderLimited) {
+		privateKeyReader.Seek(0, io.SeekStart)
+		privateKeyReaderLimited = ageInternal.AskAndDecryptWithPassphrase(privateKeyReaderLimited)
+	} else {
+		privateKeyReader.Seek(0, io.SeekStart)
+	}
+
+	identities, err := age.ParseIdentities(privateKeyReaderLimited)
 	if err != nil {
-		log.Critical.Fatalf("Error while getting identity from file %q: %v\n", privateKeyPath, err)
+		logInternal.Critical.Fatalf("Error while getting identity from file %q: %v\n", privateKeyPath, err)
 	}
 	ageIdentity := identities[0].(*age.X25519Identity)
 
@@ -42,26 +54,26 @@ func initCmdFunc(cmd *cobra.Command, args []string) {
 
 	bundleWriter, err := bundler.NewWriter(&tarballBuffer, ageIdentity.Recipient())
 	if err != nil {
-		log.Critical.Fatalf("Error while openning bundle writer: %v\n", err)
+		logInternal.Critical.Fatalf("Error while openning bundle writer: %v\n", err)
 	}
 
 	tarHeader := &tar.Header{
 		Name:     stateName,
-		Mode:     0755,
+		Mode:     0o755,
 		Typeflag: tar.TypeDir,
 	}
 
 	if err := bundleWriter.TarWriter.WriteHeader(tarHeader); err != nil {
-		log.Critical.Fatalf("Error while writing header to tarball: %v\n", err)
+		logInternal.Critical.Fatalf("Error while writing header to tarball: %v\n", err)
 	}
 
 	if err := bundleWriter.Close(); err != nil {
-		log.Critical.Fatalf("Error closing bundle writer: %v\n", err)
+		logInternal.Critical.Fatalf("Error closing bundle writer: %v\n", err)
 	}
 
 	if err := disk.WriteBufferToFilePath(stateDirectoryOutput, bundler.GetFinalFilename(stateName), &tarballBuffer); err != nil {
-		log.Critical.Fatalf("Error while writing tarball buffer to file: %v\n", err)
+		logInternal.Critical.Fatalf("Error while writing tarball buffer to file: %v\n", err)
 	}
 
-	log.Info.Printf("Archive succesfully created, archive can be used for a new state with name %q.\n", stateName)
+	logInternal.Info.Printf("Archive succesfully created, archive can be used for a new state with name %q.\n", stateName)
 }
