@@ -9,7 +9,9 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo -e "\nBuilding:"
+rm $basedir
+echo -e "\nOld build directory removed"
+echo -e "Building:"
   
 for platform in "${platforms[@]}"
 do
