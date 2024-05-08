@@ -20,17 +20,9 @@ func init() {
 func statusCmdFunc(cmd *cobra.Command, args []string) {
 	stateName := args[0]
 
-	state, exists := config.GetConfig().States[stateName]
-	if exists == false {
-		fmt.Printf("Undefined\nYou can create it in your configuration file.\n")
-
-		return
-	}
-
-	if state.IsOpen() == true {
+	if config.GetConfig().GetState(stateName).IsOpen() {
 		fmt.Printf("Open\n")
 	} else {
 		fmt.Printf("Close\n")
 	}
-
 }

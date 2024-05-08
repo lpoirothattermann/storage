@@ -23,13 +23,10 @@ func init() {
 }
 
 func openCmdFunc(cmd *cobra.Command, args []string) {
-	forceCommand, err := cmd.Flags().GetBool("force")
+	forceCommand, _ := cmd.Flags().GetBool("force")
 	stateName := args[0]
 
-	state, exists := config.GetConfig().States[stateName]
-	if exists == false {
-		log.Critical.Fatalf("State %q doesn't exists.\n", stateName)
-	}
+	state := config.GetConfig().GetState(stateName)
 
 	file, err := os.Open(state.GetArchivePath())
 	if err != nil {
@@ -42,8 +39,8 @@ func openCmdFunc(cmd *cobra.Command, args []string) {
 	}
 
 	tmpDirectoryPath := state.GetTemporaryDirectoryPath()
-	if disk.FileOrDirectoryExists(tmpDirectoryPath) == true {
-		if forceCommand == true {
+	if disk.FileOrDirectoryExists(tmpDirectoryPath) {
+		if forceCommand {
 			if err := os.RemoveAll(tmpDirectoryPath); err != nil {
 				log.Critical.Fatalf("Error while removing old temporary directory: %v\n", err)
 			}

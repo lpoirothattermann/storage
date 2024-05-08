@@ -15,30 +15,37 @@ import (
 )
 
 type rawConfig struct {
-	LogFilePath string              `mapstructure:"log_file_path"`
 	States      map[string]rawState `mapstructure:"states"`
+	LogFilePath string              `mapstructure:"log_file_path"`
 }
 
 type Config struct {
 	LogFilePath string
-	States      map[string]State
+}
+
+func (config *Config) GetState(stateName string) *State {
+	if _, exists := statesCache[stateName]; !exists {
+		statesCache[stateName] = getState(stateName)
+	}
+
+	return statesCache[stateName]
 }
 
 // Singleton
-var singleConfig *Config
+var (
+	vConfig     *Config
+	vRawConfig  *rawConfig
+	statesCache map[string]*State
+)
 
 func GetConfig() *Config {
-	if singleConfig == nil {
-		singleConfig = getConfig()
-	}
-
-	return singleConfig
+	return vConfig
 }
 
-func ReloadConfig() *Config {
-	singleConfig = getConfig()
-
-	return singleConfig
+func init() {
+	vRawConfig = &rawConfig{}
+	vConfig = getConfig()
+	statesCache = make(map[string]*State)
 }
 
 func getConfig() *Config {
@@ -63,25 +70,28 @@ func getConfig() *Config {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			createDefaultConfigFile()
-			return GetConfig()
+			getConfig()
 		} else {
 			logInternal.Critical.Fatalf("Error while loading config: %v\n", err)
 		}
 	}
-
-	rawConfig := &rawConfig{}
-	if err := viper.UnmarshalExact(rawConfig); err != nil {
+	if err := viper.UnmarshalExact(vRawConfig); err != nil {
 		logInternal.Critical.Fatalf("Error while parsing configuration file: %v\n", err)
 	}
 
-	// Create formated config struct
-	config := Config{
-		LogFilePath: pathInternal.GetNormalizedPath(rawConfig.LogFilePath),
-		States:      make(map[string]State),
+	// Create formatted config struct with empty states
+	return &Config{
+		LogFilePath: pathInternal.GetNormalizedPath(vRawConfig.LogFilePath),
 	}
+}
 
-	for index, value := range rawConfig.States {
-		privateKeyPath := pathInternal.GetNormalizedPath(value.PrivateKeyPath)
+func getState(stateName string) *State {
+	for sName, sValue := range vRawConfig.States {
+		if sName != stateName {
+			continue
+		}
+
+		privateKeyPath := pathInternal.GetNormalizedPath(sValue.PrivateKeyPath)
 
 		privateKeyReader, err := os.Open(privateKeyPath)
 		if err != nil {
@@ -101,15 +111,17 @@ func getConfig() *Config {
 			logInternal.Critical.Fatalf("Error while getting identity from key file %q: %v\n", privateKeyPath, err)
 		}
 
-		config.States[index] = State{
-			Name:          index,
+		return &State{
+			Name:          sName,
 			AgeIdentity:   identities[0].(*age.X25519Identity),
-			EncryptedPath: pathInternal.GetNormalizedPath(value.EncryptedPath),
-			DecryptedPath: pathInternal.GetNormalizedPath(value.DecryptedPath),
+			EncryptedPath: pathInternal.GetNormalizedPath(sValue.EncryptedPath),
+			DecryptedPath: pathInternal.GetNormalizedPath(sValue.DecryptedPath),
 		}
 	}
 
-	return &config
+	logInternal.Critical.Fatalf("State %q doesn't exists.", stateName)
+
+	return nil // Not reachable
 }
 
 func getConfigDirectoryPath() string {

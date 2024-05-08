@@ -23,7 +23,7 @@ type State struct {
 }
 
 func (state *State) IsOpen() bool {
-	if disk.FileOrDirectoryExists(state.GetTemporaryDirectoryPath()) == false {
+	if !disk.FileOrDirectoryExists(state.GetTemporaryDirectoryPath()) {
 		return false
 	}
 

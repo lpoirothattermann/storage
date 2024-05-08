@@ -28,5 +28,4 @@ func versionCmdFunc(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("%v (%v)\n", constants.VERSION, commit)
-
 }

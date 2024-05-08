@@ -28,12 +28,9 @@ func init() {
 func closeCmdFunc(cmd *cobra.Command, args []string) {
 	stateName := args[0]
 
-	state, exists := config.GetConfig().States[stateName]
-	if exists == false {
-		log.Critical.Fatalf("State %q doesn't exists.\n'", stateName)
-	}
+	state := config.GetConfig().GetState(stateName)
 
-	if disk.FileOrDirectoryExists(state.GetTemporaryDirectoryPath()) == false {
+	if !disk.FileOrDirectoryExists(state.GetTemporaryDirectoryPath()) {
 		log.Critical.Fatalf("State %q can't be close becose it's not open.\n", stateName)
 	}
 
