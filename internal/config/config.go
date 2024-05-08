@@ -1,11 +1,15 @@
 package config
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"filippo.io/age"
+	ageInternal "github.com/lpoirothattermann/storage/internal/age"
 	"github.com/lpoirothattermann/storage/internal/constants"
 	logInternal "github.com/lpoirothattermann/storage/internal/log"
 	pathInternal "github.com/lpoirothattermann/storage/internal/path"
@@ -85,9 +89,40 @@ func getConfig() *Config {
 		if err != nil {
 			logInternal.Critical.Fatalf("Unable to open private key file: %v\n", err)
 		}
-		identities, err := age.ParseIdentities(privateKeyReader)
+		privateKeyReaderLimited := io.LimitReader(privateKeyReader, constants.PRIVATE_KEY_SIZE_LIMIT)
+
+		if ageInternal.IsEncryptedWithPassphrase(privateKeyReaderLimited) {
+			privateKeyReader.Seek(0, io.SeekStart)
+
+			passphrase, err := ageInternal.PassphrasePromptForDecryption()
+			if err != nil {
+				logInternal.Critical.Fatalf("Error while getting passphrase from user input: %v\n", err)
+			}
+
+			scryptIdentity, err := age.NewScryptIdentity(passphrase)
+			if err != nil {
+				logInternal.Critical.Fatalf("Error while creating passphrase identity: %v\n", err)
+			}
+			ad, err := age.Decrypt(privateKeyReaderLimited, scryptIdentity)
+			if err != nil {
+				if _, isWrongPassphrase := err.(*age.NoIdentityMatchError); isWrongPassphrase {
+					fmt.Printf("Wrong passphrase.\n")
+					os.Exit(1)
+				} else {
+					logInternal.Critical.Fatalf("Error while decrypting key with passphrase: %T\n", err)
+				}
+			}
+
+			privateKeyFileDecrypted, err := io.ReadAll(ad)
+			if err != nil {
+				logInternal.Critical.Fatalf("Error while parsing key file: %v\n", err)
+			}
+			privateKeyReaderLimited = strings.NewReader(string(privateKeyFileDecrypted))
+		}
+
+		identities, err := age.ParseIdentities(privateKeyReaderLimited)
 		if err != nil {
-			logInternal.Critical.Fatalf("Error while getting identity from file %q: %v\n", privateKeyPath, err)
+			logInternal.Critical.Fatalf("Error while getting identity from key file: %v\n", err)
 		}
 
 		config.States[index] = State{
