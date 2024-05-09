@@ -33,7 +33,7 @@ func openCmdFunc(cmd *cobra.Command, args []string) {
 		log.Critical.Fatalf("Error while opening archive: %v\n", err)
 	}
 
-	bundleReader, err := bundler.NewReader(file, state.AgeIdentity)
+	bundleReader, err := bundler.NewReader(file, state.GetIdentity())
 	if err != nil {
 		log.Critical.Fatalf("Error while opening bundle reader: %v\n", err)
 	}

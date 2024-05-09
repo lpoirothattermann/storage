@@ -45,7 +45,7 @@ func closeCmdFunc(cmd *cobra.Command, args []string) {
 		log.Critical.Fatalf("Error while creating empty archive: %v\n", err)
 	}
 
-	bundleWriter, err := bundler.NewWriter(archiveFile, state.AgeIdentity.Recipient())
+	bundleWriter, err := bundler.NewWriter(archiveFile, state.GetRecipient())
 	if err != nil {
 		log.Critical.Fatalf("Error while creating bundle writer: %v\n", err)
 	}

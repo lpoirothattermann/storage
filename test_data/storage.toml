@@ -9,5 +9,6 @@ decrypted_path = "~/Code/storage/test_data/decrypted/"
 
 [states.test_with_pass]
 private_key_path = "~/Code/storage/test_data/keys/key_with_pass.txt.age" # passhrase: charge-ketchup-wife-cause-sell-despair-brick-label-expire-section
+public_key = "age199lclxzlzr7uxyvhgstm7shtt8ce8q0k6lx9gsvwnskypkq53g2spfjue2"
 encrypted_path = "~/Code/storage/test_data/encrypted/"
 decrypted_path = "~/Code/storage/test_data/decrypted/"
